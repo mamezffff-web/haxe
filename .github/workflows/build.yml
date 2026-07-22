@@ -1,4 +1,4 @@
-name: Build Haxe ARM64
+name: Build Haxe & Haxelib ARM64
 
 on:
   workflow_dispatch:
@@ -28,20 +28,24 @@ jobs:
             libpcre2-dev \
             zlib1g-dev \
             libmbedtls-dev \
-            pkg-config
+            pkg-config \
+            neko \
+            neko-dev
 
       - name: Install OPAM Dependencies
         run: |
           eval $(opam env)
           opam install . --deps-only --with-test -y
 
-      - name: Build Haxe Binary for ARM64
+      - name: Build Haxe & Haxelib Binaries for ARM64
         run: |
           eval $(opam env)
-          make CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ static=1
+          make all CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ static=1
 
-      - name: Upload Binary Artifact
+      - name: Upload Binaries Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: haxe-arm64-binary
-          path: haxe
+          name: haxe-arm64-full
+          path: |
+            haxe
+            haxelib
