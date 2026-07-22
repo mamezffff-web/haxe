@@ -45,7 +45,7 @@ jobs:
           eval $(opam env)
           cd extra/haxelib_src
           ../../haxe client.hxml
-          aarch64-linux-gnu-gcc -O2 run.c -o ../../haxelib -I. -DNO_NEKO
+          aarch64-linux-gnu-gcc -O2 src/run.c -o ../../haxelib -I. -DNO_NEKO
 
       - name: Upload Binaries Artifact
         uses: actions/upload-artifact@v4
