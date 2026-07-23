@@ -1,4 +1,4 @@
-name: Build Haxe & Haxelib Fully Static ARM64 (Termux Native)
+name: Build Truly Static Haxe for Termux (Musl)
 
 on:
   workflow_dispatch:
@@ -13,63 +13,42 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup OCaml Environment
+      - name: Install Musl and Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools make gcc g++ pkg-config
+
+      - name: Setup OCaml Environment with Musl
         uses: ocaml/setup-ocaml@v3
         with:
           ocaml-compiler: 5.2.x
-
-      - name: Install System Dependencies (Static Libraries)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            make \
-            gcc \
-            g++ \
-            libpcre2-dev \
-            zlib1g-dev \
-            libmbedtls-dev \
-            pkg-config \
-            musl-tools
 
       - name: Install OPAM Dependencies
         run: |
           eval $(opam env)
           opam install . --deps-only --with-test -y
 
-      - name: Build Haxe Binary (Fully Static)
+      - name: Build Static Haxe Binary
         run: |
           eval $(opam env)
-          # استخدام خيارات الربط الساكن الشامل لمكتبات C و OCaml
-          make haxe static=1 STATIC_LINK=1 CFLAGS="-O2 -static" LDFLAGS="-static" || \
-          make haxe static=1 CFLAGS="-O2"
+          # إجبار التجميع عبر Musl للربط الساكن المطلق
+          CC=musl-gcc make haxe static=1 STATIC_LINK=1 CFLAGS="-O2 -static" LDFLAGS="-static" || \
+          make haxe static=1 CFLAGS="-O2 -static" LDFLAGS="-static"
 
-      - name: Build Haxelib Binary (Fully Static)
+      - name: Build Static Haxelib Binary
         run: |
           eval $(opam env)
           RUN_C_PATH=$(find . -name "run.c" | head -n 1)
-          
           if [ -n "$RUN_C_PATH" ]; then
             HAXELIB_DIR=$(dirname "$RUN_C_PATH")
-            # تجميع haxelib بربط ساكن ممتاز
-            gcc -O2 -static "$RUN_C_PATH" -o haxelib -I"$HAXELIB_DIR" -DNO_NEKO -lpcre2-8 -lz -lmbedcrypto -lmbedx509 -lmbedtls || \
+            musl-gcc -O2 -static "$RUN_C_PATH" -o haxelib -I"$HAXELIB_DIR" -DNO_NEKO || \
             gcc -O2 -static "$RUN_C_PATH" -o haxelib -I"$HAXELIB_DIR" -DNO_NEKO
           fi
 
-          if [ -f "haxelib" ]; then
-            chmod +x haxelib
-          fi
-
-      - name: Verify Binary Architectures
-        run: |
-          echo "=========================================="
-          file haxe || true
-          file haxelib || true
-          echo "=========================================="
-
-      - name: Upload Binaries Artifact
+      - name: Upload Truly Static Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: haxe-static-arm64
+          name: haxe-musl-static-arm64
           path: |
             haxe
             haxelib
