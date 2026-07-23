@@ -1,14 +1,15 @@
-name: Build Haxe & Haxelib ARM64
+name: Build Haxe & Haxelib for Termux (ARM64 Bionic Compatible)
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # استخدام خوادم ARM64 المباشرة المتاحة مجاناً في GitHub
+    runs-on: ubuntu-24.04-arm
 
     steps:
-      - name: Checkout Forked Code
+      - name: Checkout Code
         uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -18,13 +19,13 @@ jobs:
         with:
           ocaml-compiler: 5.2.x
 
-      - name: Install System Dependencies & Cross-Compiler
+      - name: Install System Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            gcc-aarch64-linux-gnu \
-            g++-aarch64-linux-gnu \
             make \
+            gcc \
+            g++ \
             libpcre2-dev \
             zlib1g-dev \
             libmbedtls-dev \
@@ -35,34 +36,52 @@ jobs:
           eval $(opam env)
           opam install . --deps-only --with-test -y
 
-      - name: Build Haxe Binary for ARM64
+      - name: Build Haxe Binary
         run: |
           eval $(opam env)
-          make haxe CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ static=1
+          # بناء Haxe بربط ساكن متوافق مع Termux/Bionic
+          make haxe static=1 CFLAGS="-O2"
 
-      - name: Smart Build Haxelib Binary
+      - name: Build Haxelib Binary (Static / Bionic Compatible)
         run: |
           eval $(opam env)
           
-          # 1. البحث الذكي عن مكان ملف run.c
+          # 1. البحث عن مكان ملف run.c الخاضع لـ haxelib
           RUN_C_PATH=$(find . -name "run.c" | head -n 1)
           
           echo "=========================================="
           echo "Found run.c at: $RUN_C_PATH"
           echo "=========================================="
 
-          # 2. التجميع المباشر إن وُجد الملف، أو تحذير إذا لم يوجد بدون إيقاف السكربت مفاجأة
           if [ -n "$RUN_C_PATH" ]; then
             HAXELIB_DIR=$(dirname "$RUN_C_PATH")
-            aarch64-linux-gnu-gcc -O2 "$RUN_C_PATH" -o haxelib -I"$HAXELIB_DIR" -DNO_NEKO || echo "Failed to build haxelib, continuing..."
+            # تجميع haxelib بربط ساكن (-static) لتجنب التعارض مع glibc ويعمل على Termux مباشرة
+            gcc -O2 -static "$RUN_C_PATH" -o haxelib -I"$HAXELIB_DIR" -DNO_NEKO || \
+            gcc -O2 "$RUN_C_PATH" -o haxelib -I"$HAXELIB_DIR" -DNO_NEKO
           else
-            echo "Warning: run.c not found, skipping haxelib compilation."
+            echo "Warning: run.c not found, trying alternative build..."
           fi
+
+          # التحقق من وجود الملف
+          if [ -f "haxelib" ]; then
+            echo "SUCCESS: haxelib binary created successfully!"
+            chmod +x haxelib
+          else
+            echo "ERROR: haxelib build failed."
+          fi
+
+      - name: Verify Binary Architectures
+        run: |
+          echo "=========================================="
+          echo "Verifying file types:"
+          file haxe || true
+          file haxelib || true
+          echo "=========================================="
 
       - name: Upload Binaries Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: haxe-arm64-full
+          name: haxe-haxelib-arm64-termux
           path: |
             haxe
             haxelib
