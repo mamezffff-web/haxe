@@ -1,4 +1,4 @@
-name: Build Haxe & Haxelib for Termux (ARM64 Complete)
+name: Build Haxe 5.0.0 for Android ARM64 (Pure Bionic / Static)
 
 on:
   workflow_dispatch:
@@ -35,34 +35,27 @@ jobs:
           eval $(opam env)
           opam install . --deps-only --with-test -y
 
-      - name: Build Haxe Binary
+      - name: Build Fully Static Haxe 5.0.0 Binary
         run: |
           eval $(opam env)
-          make haxe static=1 CFLAGS="-O2"
+          # استخدام STATICLINK والربط الساكن للثنائيات لمنع الاعتماد على GLIBC
+          make haxe static=1 STATICLINK=1 CFLAGS="-O2 -static" LDFLAGS="-static"
 
-      - name: Build Haxelib Binary
+      - name: Build Fully Static Haxelib Binary
         run: |
           eval $(opam env)
           RUN_C_PATH=$(find . -name "run.c" | head -n 1)
           if [ -n "$RUN_C_PATH" ]; then
             HAXELIB_DIR=$(dirname "$RUN_C_PATH")
-            gcc -O2 "$RUN_C_PATH" -o haxelib -I"$HAXELIB_DIR" -DNO_NEKO -lpcre2-8 -lz -lmbedcrypto -lmbedx509 -lmbedtls || \
-            gcc -O2 "$RUN_C_PATH" -o haxelib -I"$HAXELIB_DIR" -DNO_NEKO
+            # تجميع haxelib مع -static لمنع الاعتماد على مكتبات النظام الخارجية
+            gcc -O2 -static "$RUN_C_PATH" -o haxelib -I"$HAXELIB_DIR" -DNO_NEKO -lpcre2-8 -lz -lmbedcrypto -lmbedx509 -lmbedtls -lm -ldl || \
+            gcc -O2 -static "$RUN_C_PATH" -o haxelib -I"$HAXELIB_DIR" -DNO_NEKO -lm -ldl
           fi
 
-      - name: Bundle Required Libraries (.so files)
-        run: |
-          mkdir -p libs
-          # جمع جميع المكتبات التي يحتاجها haxe لضمان عمله دون خطأ المكتبات المفقودة
-          cp -L /usr/lib/aarch64-linux-gnu/libmbed* libs/ 2>/dev/null || true
-          cp -L /usr/lib/aarch64-linux-gnu/libpcre2* libs/ 2>/dev/null || true
-          cp -L /usr/lib/aarch64-linux-gnu/libz* libs/ 2>/dev/null || true
-
-      - name: Upload Binaries & Libraries Artifact
+      - name: Upload Native Binaries Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: haxe-arm64-bundle
+          name: haxe5-arm64-bionic-static
           path: |
             haxe
             haxelib
-            libs/
