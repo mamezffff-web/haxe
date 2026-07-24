@@ -1,10 +1,10 @@
-name: Build Haxe 5.0.0 for Android ARM64 (Pure Bionic / Static)
+name: Build Truly Static Haxe 5.0.0 for Android ARM64
 
 on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-static:
     runs-on: ubuntu-24.04-arm
 
     steps:
@@ -35,27 +35,26 @@ jobs:
           eval $(opam env)
           opam install . --deps-only --with-test -y
 
-      - name: Build Fully Static Haxe 5.0.0 Binary
+      - name: Build Truly Static Haxe
         run: |
           eval $(opam env)
-          # استخدام STATICLINK والربط الساكن للثنائيات لمنع الاعتماد على GLIBC
-          make haxe static=1 STATICLINK=1 CFLAGS="-O2 -static" LDFLAGS="-static"
+          # تمرير خيار الربط الساكن مباشرة لمترجم OCaml و GCC
+          make haxe static=1 OCAMLOPT="ocamlopt -ccopt -static" CFLAGS="-O2 -static"
 
-      - name: Build Fully Static Haxelib Binary
+      - name: Build Truly Static Haxelib
         run: |
           eval $(opam env)
           RUN_C_PATH=$(find . -name "run.c" | head -n 1)
           if [ -n "$RUN_C_PATH" ]; then
             HAXELIB_DIR=$(dirname "$RUN_C_PATH")
-            # تجميع haxelib مع -static لمنع الاعتماد على مكتبات النظام الخارجية
             gcc -O2 -static "$RUN_C_PATH" -o haxelib -I"$HAXELIB_DIR" -DNO_NEKO -lpcre2-8 -lz -lmbedcrypto -lmbedx509 -lmbedtls -lm -ldl || \
             gcc -O2 -static "$RUN_C_PATH" -o haxelib -I"$HAXELIB_DIR" -DNO_NEKO -lm -ldl
           fi
 
-      - name: Upload Native Binaries Artifact
+      - name: Upload Static Binaries
         uses: actions/upload-artifact@v4
         with:
-          name: haxe5-arm64-bionic-static
+          name: haxe5-arm64-static-final
           path: |
             haxe
             haxelib
