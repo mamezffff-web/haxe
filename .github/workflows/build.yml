@@ -1,10 +1,10 @@
-name: Build Truly Static Haxe 5.0.0 for Android ARM64
+name: Build Pure Static Haxe 5.0.0 (Alpine Musl)
 
 on:
   workflow_dispatch:
 
 jobs:
-  build-static:
+  build-musl:
     runs-on: ubuntu-24.04-arm
 
     steps:
@@ -13,48 +13,27 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup OCaml Environment
-        uses: ocaml/setup-ocaml@v3
-        with:
-          ocaml-compiler: 5.2.x
-
-      - name: Install System Dependencies
+      - name: Build Static Haxe via Alpine Docker
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            make \
-            gcc \
-            g++ \
-            libpcre2-dev \
-            zlib1g-dev \
-            libmbedtls-dev \
-            pkg-config
+          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine:latest sh -c "
+            apk add --no-libc-dev build-base ocaml opam pcre2-dev zlib-dev mbedtls-dev git
+            opam init --disable-sandboxing -a
+            eval \$(opam env)
+            opam install . --deps-only --with-test -y
+            make haxe static=1 STATICLINK=1
+            
+            # بناء haxelib إذا كان مساره موجوداً
+            RUN_C_PATH=\$(find . -name 'run.c' | head -n 1)
+            if [ -n \"\$RUN_C_PATH\" ]; then
+              HAXELIB_DIR=\$(dirname \"\$RUN_C_PATH\")
+              gcc -O2 -static \"\$RUN_C_PATH\" -o haxelib -I\"\$HAXELIB_DIR\" -DNO_NEKO -lpcre2-8 -lz -lmbedcrypto -lmbedx509 -lmbedtls -lm || true
+            fi
+          "
 
-      - name: Install OPAM Dependencies
-        run: |
-          eval $(opam env)
-          opam install . --deps-only --with-test -y
-
-      - name: Build Truly Static Haxe
-        run: |
-          eval $(opam env)
-          # تمرير خيار الربط الساكن مباشرة لمترجم OCaml و GCC
-          make haxe static=1 OCAMLOPT="ocamlopt -ccopt -static" CFLAGS="-O2 -static"
-
-      - name: Build Truly Static Haxelib
-        run: |
-          eval $(opam env)
-          RUN_C_PATH=$(find . -name "run.c" | head -n 1)
-          if [ -n "$RUN_C_PATH" ]; then
-            HAXELIB_DIR=$(dirname "$RUN_C_PATH")
-            gcc -O2 -static "$RUN_C_PATH" -o haxelib -I"$HAXELIB_DIR" -DNO_NEKO -lpcre2-8 -lz -lmbedcrypto -lmbedx509 -lmbedtls -lm -ldl || \
-            gcc -O2 -static "$RUN_C_PATH" -o haxelib -I"$HAXELIB_DIR" -DNO_NEKO -lm -ldl
-          fi
-
-      - name: Upload Static Binaries
+      - name: Upload Truly Static Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: haxe5-arm64-static-final
+          name: haxe5-musl-static
           path: |
             haxe
             haxelib
