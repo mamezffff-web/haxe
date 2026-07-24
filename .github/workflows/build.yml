@@ -1,51 +1,46 @@
-name: Build Pure Static Haxe 5.0.0 (Alpine Musl Fix)
+name: Build Haxe 5.0.0 Native for Termux (Bionic)
 
 on:
   workflow_dispatch:
 
 jobs:
-  build-musl:
+  build-in-termux:
     runs-on: ubuntu-24.04-arm
+    container:
+      image: termux/termux-docker:aarch64
 
     steps:
+      - name: Install Termux Packages & Dependencies
+        run: |
+          pkg update -y
+          pkg install -y build-essential ocaml opam pcre2 zlib mbedtls git make
+
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Build Static Haxe via Alpine Docker
+      - name: Build Haxe Inside Termux Environment
         run: |
-          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine:latest sh -c "
-            apk update
-            apk add --no-cache build-base ocaml opam pcre2-dev zlib-dev mbedtls-dev git
-            
-            # تهيئة opam وتثبيت الاعتماديات
-            opam init --disable-sandboxing -a
-            eval \$(opam env)
-            opam install . --deps-only --with-test -y
-            
-            # بناء haxe ساكن
-            make haxe static=1 STATICLINK=1
-            
-            # بناء haxelib إذا كان مساره موجوداً
-            RUN_C_PATH=\$(find . -name 'run.c' | head -n 1)
-            if [ -n \"\$RUN_C_PATH\" ]; then
-              HAXELIB_DIR=\$(dirname \"\$RUN_C_PATH\")
-              gcc -O2 -static \"\$RUN_C_PATH\" -o haxelib -I\"\$HAXELIB_DIR\" -DNO_NEKO -lpcre2-8 -lz -lmbedcrypto -lmbedx509 -lmbedtls -lm || true
-            fi
-            
-            # التأكد من منح الصلاحيات للملفات الناتجة لرافع الأكشنز
-            chmod 777 haxe haxelib 2>/dev/null || true
-          "
+          # تهيئة opam داخل بيئة Termux
+          opam init --disable-sandboxing -a
+          eval $(opam env)
+          opam install . --deps-only --with-test -y
 
-      - name: Check Built Files
-        run: |
-          ls -la haxe haxelib || true
+          # بناء haxe natively
+          make haxe
 
-      - name: Upload Truly Static Artifacts
+          # بناء haxelib
+          RUN_C_PATH=$(find . -name "run.c" | head -n 1)
+          if [ -n "$RUN_C_PATH" ]; then
+            HAXELIB_DIR=$(dirname "$RUN_C_PATH")
+            gcc -O2 "$RUN_C_PATH" -o haxelib -I"$HAXELIB_DIR" -DNO_NEKO -lpcre2-8 -lz -lmbedcrypto -lmbedx509 -lmbedtls -lm || true
+          fi
+
+      - name: Upload Termux Native Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: haxe5-musl-static-final
+          name: haxe5-termux-native
           path: |
             haxe
             haxelib
