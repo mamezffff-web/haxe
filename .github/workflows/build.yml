@@ -1,4 +1,4 @@
-name: Build Pure Static Haxe 5.0.0 (Alpine Musl)
+name: Build Pure Static Haxe 5.0.0 (Alpine Musl Fix)
 
 on:
   workflow_dispatch:
@@ -16,10 +16,15 @@ jobs:
       - name: Build Static Haxe via Alpine Docker
         run: |
           docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine:latest sh -c "
-            apk add --no-libc-dev build-base ocaml opam pcre2-dev zlib-dev mbedtls-dev git
+            apk update
+            apk add --no-cache build-base ocaml opam pcre2-dev zlib-dev mbedtls-dev git
+            
+            # تهيئة opam وتثبيت الاعتماديات
             opam init --disable-sandboxing -a
             eval \$(opam env)
             opam install . --deps-only --with-test -y
+            
+            # بناء haxe ساكن
             make haxe static=1 STATICLINK=1
             
             # بناء haxelib إذا كان مساره موجوداً
@@ -28,12 +33,19 @@ jobs:
               HAXELIB_DIR=\$(dirname \"\$RUN_C_PATH\")
               gcc -O2 -static \"\$RUN_C_PATH\" -o haxelib -I\"\$HAXELIB_DIR\" -DNO_NEKO -lpcre2-8 -lz -lmbedcrypto -lmbedx509 -lmbedtls -lm || true
             fi
+            
+            # التأكد من منح الصلاحيات للملفات الناتجة لرافع الأكشنز
+            chmod 777 haxe haxelib 2>/dev/null || true
           "
+
+      - name: Check Built Files
+        run: |
+          ls -la haxe haxelib || true
 
       - name: Upload Truly Static Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: haxe5-musl-static
+          name: haxe5-musl-static-final
           path: |
             haxe
             haxelib
