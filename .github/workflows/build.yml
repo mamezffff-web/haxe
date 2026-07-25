@@ -8,40 +8,34 @@ jobs:
     runs-on: ubuntu-24.04-arm
     container:
       image: termux/termux-docker:aarch64
+      env:
+        ALLOW_ROOT: "1"
 
     steps:
-      - name: Install Termux Packages & Dependencies
+      - name: Install Termux Packages via APT
         run: |
-          
-          export ALLOW_ROOT=1
-          pkg update -y
-          pkg install -y build-essential ocaml opam pcre2 zlib mbedtls git make bash
+          apt-get update -y
+          apt-get install -y build-essential ocaml opam libpcre2-dev zlib1g-dev libmbedtls-dev git make bash
 
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Build Haxe Inside Termux Environment
+      - name: Build Haxe Native
         run: |
-          export ALLOW_ROOT=1
-          
-          
           opam init --disable-sandboxing -a
           eval $(opam env)
           opam install . --deps-only --with-test -y
-
-          
           make haxe
 
-          
           RUN_C_PATH=$(find . -name "run.c" | head -n 1)
           if [ -n "$RUN_C_PATH" ]; then
             HAXELIB_DIR=$(dirname "$RUN_C_PATH")
             gcc -O2 "$RUN_C_PATH" -o haxelib -I"$HAXELIB_DIR" -DNO_NEKO -lpcre2-8 -lz -lmbedcrypto -lmbedx509 -lmbedtls -lm || true
           fi
 
-      - name: Upload Termux Native Artifacts
+      - name: Upload Native Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: haxe5-termux-bionic-native
