@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: Install Termux Packages & Dependencies
         run: |
-          # السماح بتشغيل pkg تحت مستخدم root
+          
           export ALLOW_ROOT=1
           pkg update -y
           pkg install -y build-essential ocaml opam pcre2 zlib mbedtls git make bash
@@ -26,15 +26,15 @@ jobs:
         run: |
           export ALLOW_ROOT=1
           
-          # تهيئة opam وتثبيت الاعتماديات
+          
           opam init --disable-sandboxing -a
           eval $(opam env)
           opam install . --deps-only --with-test -y
 
-          # بناء haxe natively الموجه لـ Bionic
+          
           make haxe
 
-          # بناء haxelib
+          
           RUN_C_PATH=$(find . -name "run.c" | head -n 1)
           if [ -n "$RUN_C_PATH" ]; then
             HAXELIB_DIR=$(dirname "$RUN_C_PATH")
