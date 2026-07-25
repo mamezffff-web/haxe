@@ -5,7 +5,7 @@ on:
 
 jobs:
   build-android:
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
@@ -35,7 +35,7 @@ jobs:
         run: |
           TOOLCHAIN="$NDK_HOME/build/cmake/android.toolchain.cmake"
 
-          # 1. بناء PCRE2 باستخدام CMake بدلاً من configure
+          # 1. بناء PCRE2 باستخدام CMake
           wget -q https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.42/pcre2-10.42.tar.gz
           tar -xzf pcre2-10.42.tar.gz
           cd pcre2-10.42
@@ -73,8 +73,8 @@ jobs:
                    -DANDROID_ABI=arm64-v8a \
                    -DANDROID_PLATFORM=android-24 \
                    -DCMAKE_INSTALL_PREFIX=$PWD/install \
-                   -ENABLE_PROGRAMS=OFF \
-                   -ENABLE_TESTING=OFF
+                   -DENABLE_PROGRAMS=OFF \
+                   -DENABLE_TESTING=OFF
           make -j$(nproc) && make install
           cd ../..
           echo "MBEDTLS_DIR=$PWD/mbedtls-3.5.0/build/install" >> $GITHUB_ENV
