@@ -5,7 +5,7 @@ on:
 
 jobs:
   build-android:
-    runs-on: ubuntu-latest  # استخدم latest لكن نتحكم بـ CMake يدوياً
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
@@ -21,18 +21,7 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y make git wget unzip pkg-config file
-
-      - name: Install Compatible CMake
-        run: |
-          # إزالة CMake الحالي وتثبيت نسخة متوافقة مع NDK
-          sudo apt-get remove -y cmake
-          wget -q https://github.com/Kitware/CMake/releases/download/v3.22.6/cmake-3.22.6-linux-aarch64.tar.gz
-          tar -xzf cmake-3.22.6-linux-aarch64.tar.gz
-          sudo mv cmake-3.22.6-linux-aarch64 /opt/cmake
-          echo "/opt/cmake/bin" >> $GITHUB_PATH
-          export PATH="/opt/cmake/bin:$PATH"
-          cmake --version  # تأكيد الإصدار
+          sudo apt-get install -y make git wget unzip pkg-config file cmake
 
       - name: Setup Android NDK
         run: |
@@ -44,7 +33,6 @@ jobs:
 
       - name: Build Android Libraries for Bionic (PCRE2, Zlib, mbedtls)
         run: |
-          export PATH="/opt/cmake/bin:$PATH"
           TOOLCHAIN="$NDK_HOME/build/cmake/android.toolchain.cmake"
 
           # 1. بناء PCRE2
@@ -95,7 +83,6 @@ jobs:
 
       - name: Configure OPAM & Build Haxe for Android Bionic
         run: |
-          export PATH="/opt/cmake/bin:$PATH"
           eval $(opam env)
           opam install . --deps-only -y
           
@@ -108,7 +95,6 @@ jobs:
 
       - name: Build Haxelib (Static Bionic)
         run: |
-          export PATH="/opt/cmake/bin:$PATH"
           eval $(opam env)
           
           RUN_C_PATH=$(find . -name "run.c" | head -n 1)
