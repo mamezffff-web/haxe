@@ -35,7 +35,7 @@ jobs:
         run: |
           TOOLCHAIN="$NDK_HOME/build/cmake/android.toolchain.cmake"
 
-          # 1. بناء PCRE2 باستخدام CMake
+          # 1. بناء PCRE2
           wget -q https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.42/pcre2-10.42.tar.gz
           tar -xzf pcre2-10.42.tar.gz
           cd pcre2-10.42
@@ -51,7 +51,7 @@ jobs:
           cd ../..
           echo "PCRE2_DIR=$PWD/pcre2-10.42/build/install" >> $GITHUB_ENV
 
-          # 2. بناء Zlib لـ Android
+          # 2. بناء Zlib
           wget -q https://zlib.net/zlib-1.3.1.tar.gz
           tar -xzf zlib-1.3.1.tar.gz
           cd zlib-1.3.1
@@ -64,7 +64,7 @@ jobs:
           cd ../..
           echo "ZLIB_DIR=$PWD/zlib-1.3.1/build/install" >> $GITHUB_ENV
 
-          # 3. بناء mbedtls لـ Android
+          # 3. بناء mbedtls (تم تصحيح الخيارات هنا)
           wget -q https://github.com/Mbed-TLS/mbedtls/archive/v3.5.0.tar.gz
           tar -xzf v3.5.0.tar.gz
           cd mbedtls-3.5.0
@@ -82,14 +82,10 @@ jobs:
       - name: Configure OPAM & Build Haxe for Android Bionic
         run: |
           eval $(opam env)
-          
-          export CC=aarch64-linux-android24-clang
-          export CXX=aarch64-linux-android24-clang++
-          export AR=llvm-ar
-          export RANLIB=llvm-ranlib
-          
           opam install . --deps-only -y
-          make haxe CC=aarch64-linux-android24-clang STATICLINK=1
+          
+          # توجيه المترجم الخاص بـ Android NDK لبناء haxe
+          make haxe CC=aarch64-linux-android24-clang CXX=aarch64-linux-android24-clang++ STATICLINK=1
 
       - name: Build Haxelib (Static Bionic)
         run: |
@@ -98,7 +94,7 @@ jobs:
           RUN_C_PATH=$(find . -name "run.c" | head -n 1)
           if [ -n "$RUN_C_PATH" ]; then
             HAXELIB_DIR=$(dirname "$RUN_C_PATH")
-            aarch64-linux-android24-clang -static "$RUN_C_PATH" -o haxelib \
+            aarch64-linux-android24-clang "$RUN_C_PATH" -o haxelib \
               -I"$HAXELIB_DIR" -DNO_NEKO \
               -I"$PCRE2_DIR/include" -L"$PCRE2_DIR/lib" -lpcre2-8 \
               -I"$ZLIB_DIR/include" -L"$ZLIB_DIR/lib" -lz \
