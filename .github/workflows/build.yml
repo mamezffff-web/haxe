@@ -5,7 +5,7 @@ on:
 
 jobs:
   build-android:
-    runs-on: ubuntu-20.04  # 🔥 تغيير حاسم! Ubuntu 20.04 يستخدم CMake 3.16 المتوافق مع NDK
+    runs-on: ubuntu-22.04  # 🔥 تغيير إلى 22.04 لسرعة التشغيل والتوافق
 
     steps:
       - name: Checkout Code
@@ -86,7 +86,6 @@ jobs:
           eval $(opam env)
           opam install . --deps-only -y
           
-          # توجيه المترجم الخاص بـ Android NDK
           export CC=aarch64-linux-android24-clang
           export CXX=aarch64-linux-android24-clang++
           export AR=llvm-ar
