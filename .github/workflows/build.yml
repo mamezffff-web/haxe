@@ -1,44 +1,52 @@
-name: Build Haxe 5.0.0 Native for Termux (Bionic)
+name: Build Haxe 5.0.0 via Android NDK (Pure Bionic)
 
 on:
   workflow_dispatch:
 
 jobs:
-  build-in-termux:
+  build-ndk:
     runs-on: ubuntu-24.04-arm
-    container:
-      image: termux/termux-docker:aarch64
-      env:
-        ALLOW_ROOT: "1"
 
     steps:
-      - name: Install Termux Packages via APT
-        run: |
-          apt-get update -y
-          apt-get install -y build-essential ocaml opam libpcre2-dev zlib1g-dev libmbedtls-dev git make bash
-
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Build Haxe Native
+      - name: Setup OCaml
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: 5.2.x
+
+      - name: Install System Dependencies & NDK
         run: |
-          opam init --disable-sandboxing -a
+          sudo apt-get update
+          sudo apt-get install -y make git clang libpcre2-dev zlib1g-dev libmbedtls-dev
+
+      - name: Setup OPAM Dependencies
+        run: |
           eval $(opam env)
           opam install . --deps-only --with-test -y
-          make haxe
 
+      - name: Build Haxe Binary for Bionic
+        run: |
+          eval $(opam env)
+          # إجبار المترجم على استخدام Android C Library (Bionic)
+          make haxe CC="clang -target aarch64-linux-android24" CFLAGS="-O2"
+
+      - name: Build Haxelib Binary
+        run: |
+          eval $(opam env)
           RUN_C_PATH=$(find . -name "run.c" | head -n 1)
           if [ -n "$RUN_C_PATH" ]; then
             HAXELIB_DIR=$(dirname "$RUN_C_PATH")
-            gcc -O2 "$RUN_C_PATH" -o haxelib -I"$HAXELIB_DIR" -DNO_NEKO -lpcre2-8 -lz -lmbedcrypto -lmbedx509 -lmbedtls -lm || true
+            clang -target aarch64-linux-android24 -O2 "$RUN_C_PATH" -o haxelib -I"$HAXELIB_DIR" -DNO_NEKO -lpcre2-8 -lz -lmbedcrypto -lmbedx509 -lmbedtls -lm || true
           fi
 
-      - name: Upload Native Artifacts
+      - name: Upload NDK Bionic Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: haxe5-termux-bionic-native
+          name: haxe5-ndk-bionic
           path: |
             haxe
             haxelib
