@@ -35,22 +35,19 @@ jobs:
 
       - name: Build Android Libraries for Bionic (PCRE2, Zlib, mbedtls)
         run: |
-          # ضبط المترجمات وأدوات NDK
           export CC=aarch64-linux-android24-clang
           export CXX=aarch64-linux-android24-clang++
           export AR=llvm-ar
           export RANLIB=llvm-ranlib
 
-          # 1. بناء PCRE2 لـ Android
           wget -q https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.42/pcre2-10.42.tar.gz
           tar -xzf pcre2-10.42.tar.gz
           cd pcre2-10.42
-          ./configure --host=aarch64-linux-android --prefix=$PWD/install
+          ./configure --host=aarch64-linux-android CC=aarch64-linux-android24-clang --prefix=$PWD/install
           make -j$(nproc) && make install
           cd ..
           echo "PCRE2_DIR=$PWD/pcre2-10.42/install" >> $GITHUB_ENV
 
-          # 2. بناء Zlib لـ Android
           wget -q https://zlib.net/zlib-1.3.1.tar.gz
           tar -xzf zlib-1.3.1.tar.gz
           cd zlib-1.3.1
@@ -59,7 +56,6 @@ jobs:
           cd ..
           echo "ZLIB_DIR=$PWD/zlib-1.3.1/install" >> $GITHUB_ENV
 
-          # 3. بناء mbedtls لـ Android
           wget -q https://github.com/Mbed-TLS/mbedtls/archive/v3.5.0.tar.gz
           tar -xzf v3.5.0.tar.gz
           cd mbedtls-3.5.0
@@ -99,12 +95,12 @@ jobs:
               -I"$PCRE2_DIR/include" -L"$PCRE2_DIR/lib" -lpcre2-8 \
               -I"$ZLIB_DIR/include" -L"$ZLIB_DIR/lib" -lz \
               -I"$MBEDTLS_DIR/include" -L"$MBEDTLS_DIR/lib" -lmbedtls -lmbedx509 -lmbedcrypto \
-              -lm || echo "⚠️ فشل بناء haxelib"
+              -lm || echo "Failed to build haxelib"
           fi
 
       - name: Verify Built Binaries
         run: |
-          echo "🔍 الفحص المباشر لهوية الملفات الناتجة:"
+          echo "Verifying Binary Architecture:"
           file haxe || true
           file haxelib || true
 
